@@ -69,23 +69,30 @@ All potential information we can get from thh observation
 """
 
 env.reset()
-for _ in range(1):
+old_reward = 0
+for _ in range(20):
     env.render()
 
     # Image Extraction
-    a1 = env.render(mode="rgb_array", width=500,height=500) # Default renderer from robogym/robot_env.py class
-    a2 = env.sim.render(camera_name='phys_checks_cam', width=500, height=500) # Mujoco specific renderer
+    a1 = env.render(mode="rgb_array", width=300,height=300) # Default renderer from robogym/robot_env.py class
+    a2 = env.sim.render(camera_name='vision_cam_top', width=300, height=300, depth=True) # Mujoco specific renderer
     # Cameras available include: 'vision_cam_wrist', 'vision_cam_top', 'vision_cam_front', 'phys_checks_cam'
     # TODO: How can we remove the goal shadow from the image? How can we add new types of cameras/change it?
+    # Option we can use depth image data to easily bypass the goal shadow (goal shadow has no depth)
+    # 
     
     x = env.observe()
-    print(x.keys())
+    #print(x.keys())
+    #print("\n\n")
     action = env.action_space.sample()
     # TODO: What is the meaning of this action space and why is it a discrete 11?
-    print(env.action_space)
+    # How can we make this non-discrete and encode instead other inputs?
+    #print(env.action_space)
     observation, reward, done, info = env.step(action)
+    print(reward)
 
     obj_pos = observation['obj_pos']
+    print(obj_pos)
     obj_rot = observation['obj_rot']
     goal_pos = observation['goal_obj_pos']
     goal_rot = observation['goal_obj_rot']
@@ -93,15 +100,21 @@ for _ in range(1):
     # TODO: Encode the reward function as an environment function and return from the iteration.
     for i in range(len(obj_pos)):
         l2_reward -= np.linalg.norm(np.array(obj_pos[i])-np.array(goal_pos[i]))
-    print(l2_reward)
+        new_reward = l2_reward
+        _reward = new_reward - old_reward
+        old_reward = new_reward
+
+    print(_reward)
 
 env.close()
 
 import matplotlib.pyplot as plt
 
 # Visualization of mujoco camera image
-print(np.shape(a2))
-plt.imshow(a2)
+print(np.shape(a2[1]))
+plt.imshow(a1)
+plt.show()
+plt.imshow(a2[1])
 plt.show()
 print("done!")
 
