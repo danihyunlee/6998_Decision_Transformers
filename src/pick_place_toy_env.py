@@ -112,7 +112,7 @@ import matplotlib.pyplot as plt
 
 # Visualization of mujoco camera image
 print(np.shape(a2[1]))
-plt.imshow(a1)
+plt.imshow(a2[0])
 plt.show()
 plt.imshow(a2[1])
 plt.show()
