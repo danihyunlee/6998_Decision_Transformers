@@ -67,7 +67,7 @@ All potential information we can get from thh observation
 
 env.reset()
 for _ in range(10000):
-    env.render()
+#    env.render()
     action = env.action_space.sample()
     observation, reward, done, info = env.step(action)
     print(observation.keys())

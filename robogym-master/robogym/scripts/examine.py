@@ -45,9 +45,8 @@ def main(argv, teleoperate):
         assert (
             teleop_compatible
         ), "Teleoperation is only supported for rearrange environments with TCP control modes."
-    viewer = RobotControlViewer if teleoperate else EnvViewer
-    viewer(env).run()
-
+#    viewer = RobotControlViewer if teleoperate else EnvViewer
+ #   viewer(env).run()
 
 if __name__ == "__main__":
     # This ensures that we spawn new processes instead of forking. This is necessary

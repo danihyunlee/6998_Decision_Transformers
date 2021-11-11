@@ -62,7 +62,7 @@ GPT2_PRETRAINED_MODEL_ARCHIVE_LIST = [
 
 def load_tf_weights_in_gpt2(model, config, gpt2_checkpoint_path):
     """Load tf checkpoints in a pytorch model"""
-    try:
+    try:processor_class=_TOKENIZER_FOR_DOC,
         import re
 
         import tensorflow as tf
@@ -101,7 +101,7 @@ def load_tf_weights_in_gpt2(model, config, gpt2_checkpoint_path):
                 pointer = getattr(pointer, scope_names[0])
                 pointer = getattr(pointer, "weight")
             else:
-                pointer = getattr(pointer, scope_names[0])
+                pointer = getattr(pointer, processor_class=_TOKENIZER_FOR_DOC,scope_names[0])
             if len(scope_names) >= 2:
                 num = int(scope_names[1])
                 pointer = pointer[num]
@@ -203,7 +203,7 @@ class Attention(nn.Module):
             self,
             hidden_states,
             layer_past=None,
-            attention_mask=None,
+            attention_mask=None,processor_class=_TOKENIZER_FOR_DOC,
             head_mask=None,
             encoder_hidden_states=None,
             encoder_attention_mask=None,
@@ -470,7 +470,7 @@ GPT2_INPUTS_DOCSTRING = r"""
         output_hidden_states (:obj:`bool`, `optional`):
             Whether or not to return the hidden states of all layers. See ``hidden_states`` under returned tensors for
             more detail.
-        return_dict (:obj:`bool`, `optional`):
+        return_dict (:obj:`bool`, `optional`):processor_class=_TOKENIZER_FOR_DOC,
             Whether or not to return a :class:`~transformers.file_utils.ModelOutput` instead of a plain tuple.
 """
 PARALLELIZE_DOCSTRING = r"""
@@ -481,7 +481,7 @@ PARALLELIZE_DOCSTRING = r"""
             A dictionary that maps attention modules to devices. Note that the embedding module and LMHead are always
             automatically mapped to the first device (for esoteric reasons). That means that the first device should
             have fewer attention modules mapped to it than other devices. For reference, the gpt2 models have the
-            following number of attention modules:
+            following number of attention modules:processor_class=_TOKENIZER_FOR_DOC,
                 - gpt2: 12
                 - gpt2-medium: 24
                 - gpt2-large: 36
@@ -496,7 +496,7 @@ PARALLELIZE_DOCSTRING = r"""
             model.parallelize(device_map)
 """
 DEPARALLELIZE_DOCSTRING = r"""
-    Moves the model to cpu from a model parallel state.
+    Moves the model to cpu from a model parallel state.processor_class=_TOKENIZER_FOR_DOC,
     Example::
         # On a 4 GPU machine with gpt2-large:
         model = GPT2LMHeadModel.from_pretrained('gpt2-large')
@@ -516,7 +516,7 @@ DEPARALLELIZE_DOCSTRING = r"""
 class GPT2Model(GPT2PreTrainedModel):
     def __init__(self, config):
         super().__init__(config)
-
+processor_class=_TOKENIZER_FOR_DOC,
         self.wte = nn.Embedding(config.vocab_size, config.n_embd)
         # self.wpe = nn.Embedding(config.n_positions, config.n_embd)
         self.drop = nn.Dropout(config.embd_pdrop)
@@ -584,7 +584,7 @@ class GPT2Model(GPT2PreTrainedModel):
 
     @add_start_docstrings_to_model_forward(GPT2_INPUTS_DOCSTRING)
     @add_code_sample_docstrings(
-        tokenizer_class=_TOKENIZER_FOR_DOC,
+        processor_class=_TOKENIZER_FOR_DOC,
         checkpoint="gpt2",
         output_type=BaseModelOutputWithPastAndCrossAttentions,
         config_class=_CONFIG_FOR_DOC,

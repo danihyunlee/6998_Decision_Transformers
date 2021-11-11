@@ -2,6 +2,7 @@ import gym
 import numpy as np
 import torch
 import wandb
+import os
 
 import argparse
 import pickle
@@ -14,6 +15,7 @@ from decision_transformer.models.mlp_bc import MLPBCModel
 from decision_transformer.training.act_trainer import ActTrainer
 from decision_transformer.training.seq_trainer import SequenceTrainer
 
+root = '/proj/vondrick2/james/robotics/data'
 
 def discount_cumsum(x, gamma):
     discount_cumsum = np.zeros_like(x)
@@ -81,7 +83,7 @@ def experiment(
     act_dim = env.action_space.shape[0]
 
     # load dataset
-    dataset_path = f'data/{env_name}-{dataset}-v2.pkl'
+    dataset_path = os.path.join(root, f'data/{env_name}-{dataset}-v2.pkl')
     with open(dataset_path, 'rb') as f:
         trajectories = pickle.load(f)
 
