@@ -3,6 +3,7 @@ import numpy as np
 import torch
 import wandb
 import os
+import d4rl
 
 import argparse
 import pickle
@@ -15,7 +16,7 @@ from decision_transformer.models.mlp_bc import MLPBCModel
 from decision_transformer.training.act_trainer import ActTrainer
 from decision_transformer.training.seq_trainer import SequenceTrainer
 
-root = '/proj/vondrick2/james/robotics/data'
+root = '/proj/vondrick2/james/robotics/'
 
 def discount_cumsum(x, gamma):
     discount_cumsum = np.zeros_like(x)
@@ -83,9 +84,25 @@ def experiment(
     act_dim = env.action_space.shape[0]
 
     # load dataset
-    dataset_path = os.path.join(root, f'data/{env_name}-{dataset}-v2.pkl')
-    with open(dataset_path, 'rb') as f:
-        trajectories = pickle.load(f)
+
+    print(env_name)
+
+    if(env_name == 'kitchen-complete'):
+        dataset_path = os.path.join(root, f'data/kitchen-complete-v0.pkl')
+        with open(dataset_path, 'rb') as f:
+            trajectories = pickle.load(f)
+    elif(env_name == 'kitchen-mixed'):
+        dataset_path = os.path.join(root, f'data/kitchen-mixed-v0.pkl')
+        with open(dataset_path, 'rb') as f:
+            trajectories = pickle.load(f)
+    elif(env_name == 'kitchen-partial'):
+        dataset_path = os.path.join(root, f'data/kitchen-partial-v0.pkl')
+        with open(dataset_path, 'rb') as f:
+            trajectories = pickle.load(f)
+    else:
+        dataset_path = os.path.join(root, f'data/{env_name}-{dataset}-v0.pkl')
+        with open(dataset_path, 'rb') as f:
+            trajectories = pickle.load(f)
 
     # save all path information into separate lists
     mode = variant.get('mode', 'normal')

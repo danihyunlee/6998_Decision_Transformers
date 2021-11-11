@@ -1,4 +1,20 @@
 
+## Course Project Info
+
+## Scripts
+To run experiments
+
+Naive evaluation: 
+``` bash
+CUDA_VISIBLE_DEVICES=0 python experiment.py --env kitche
+n-complete --dataset complete
+
+CUDA_VISIBLE_DEVICES=1 python experiment.py --env kitche
+n-mixed --dataset mixed
+
+CUDA_VISIBLE_DEVICES=2 python experiment.py --env kitche
+n-partial --dataset partial
+```
 # OpenAI Gym
 
 ## Installation
