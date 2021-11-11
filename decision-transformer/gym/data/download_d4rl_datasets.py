@@ -3,10 +3,10 @@ import numpy as np
 
 import collections
 import pickle
-
+import os
 import d4rl
 
-
+root_dir = '/proj/vondrick2/james/robotics/data'
 datasets = []
 
 for env_name in ['halfcheetah', 'hopper', 'walker2d']:
@@ -47,7 +47,7 @@ for env_name in ['halfcheetah', 'hopper', 'walker2d']:
 		print(f'Trajectory returns: mean = {np.mean(returns)}, std = {np.std(returns)}, max = {np.max(returns)}, min = {np.min(returns)}')
 
 		with open(f'{name}.pkl', 'wb') as f:
-			pickle.dump(paths, f)
+			pickle.dump(paths, os.path.join(root,f))
 
 
 
@@ -90,4 +90,4 @@ for dataset_type in ['complete', 'partial', 'mixed']:
     print(f'Trajectory returns: mean = {np.mean(returns)}, std = {np.std(returns)}, max = {np.max(returns)}, min = {np.min(returns)}')
 
     with open(f'{name}.pkl', 'wb') as f:
-        pickle.dump(paths, f)
+        pickle.dump(paths, os.path.join(root,f))
