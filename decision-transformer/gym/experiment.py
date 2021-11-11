@@ -56,6 +56,21 @@ def experiment(
         max_ep_len = 100
         env_targets = [76, 40]
         scale = 10.
+    elif env_name == 'kitchen-complete':
+        env = gym.make('kitchen-complete-v0')
+        max_ep_len = 206
+        env_targets = [100, 50] # placeholder for now, not relevant unless we work with multitask learning
+        scale = 10. # placeholder for now
+    elif env_name == 'kitchen-partial':
+        env = gym.make('kitchen-partial-v0')
+        max_ep_len = 527
+        env_targets = [100, 50]
+        scale = 10.
+    elif env_name == 'kitchen-mixed':
+        env = gym.make('kitchen-mixed-v0')
+        max_ep_len = 527
+        env_targets = [100, 50]
+        scale = 10.
     else:
         raise NotImplementedError
 
