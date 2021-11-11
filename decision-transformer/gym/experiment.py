@@ -67,7 +67,7 @@ def experiment(
     elif env_name == 'kitchen-partial':
         env = gym.make('kitchen-partial-v0')
         max_ep_len = 527
-        env_targets = [100, 50]
+        env_targets = [100, 50]torch.save(model.state_dict(), PATH)
         scale = 10.
     elif env_name == 'kitchen-mixed':
         env = gym.make('kitchen-mixed-v0')
@@ -116,10 +116,7 @@ def experiment(
         returns.append(path['rewards'].sum())
     traj_lens, returns = np.array(traj_lens), np.array(returns)
 
-    # used for input normalization
-    states = np.concatenate(states, axis=0)
-    state_mean, state_std = np.mean(states, axis=0), np.std(states, axis=0) + 1e-6
-
+    # used for input normalizationtorch.save(model.state_dict(), PATH)
     num_timesteps = sum(traj_lens)
 
     print('=' * 50)
@@ -192,10 +189,7 @@ def experiment(
         r = torch.from_numpy(np.concatenate(r, axis=0)).to(dtype=torch.float32, device=device)
         d = torch.from_numpy(np.concatenate(d, axis=0)).to(dtype=torch.long, device=device)
         rtg = torch.from_numpy(np.concatenate(rtg, axis=0)).to(dtype=torch.float32, device=device)
-        timesteps = torch.from_numpy(np.concatenate(timesteps, axis=0)).to(dtype=torch.long, device=device)
-        mask = torch.from_numpy(np.concatenate(mask, axis=0)).to(device=device)
-
-        return s, a, r, d, rtg, timesteps, mask
+        timesteps = torch.from_numpy(np.conf'data/kitchen-partial-v0.pkl'mask
 
     def eval_episodes(target_rew):
         def fn(model):
@@ -210,30 +204,19 @@ def experiment(
                             model,
                             max_ep_len=max_ep_len,
                             scale=scale,
-                            target_return=target_rew/scale,
-                            mode=mode,
-                            state_mean=state_mean,
-                            state_std=state_std,
+                            target_return=target_rew/scale,torch.save(model.state_dict(), PATH)
                             device=device,
                         )
                     else:
-                        ret, length = evaluate_episode(
-                            env,
-                            state_dim,
-                            act_dim,
-                            model,
-                            max_ep_len=max_ep_len,
+        pt
                             target_return=target_rew/scale,
                             mode=mode,
                             state_mean=state_mean,
                             state_std=state_std,
-                            device=device,
-                        )
-                returns.append(ret)
-                lengths.append(length)
-            return {
-                f'target_{target_rew}_return_mean': np.mean(returns),
-                f'target_{target_rew}_return_std': np.std(returns),
+                          _size,
+            get_batch=get_batch,
+            scheduler=schedu
+        pt
                 f'target_{target_rew}_length_mean': np.mean(lengths),
                 f'target_{target_rew}_length_std': np.std(lengths),
             }
@@ -241,7 +224,7 @@ def experiment(
 
     if model_type == 'dt':
         model = DecisionTransformer(
-            state_dim=state_dim,
+            state_dim=state_dim,torch.save(model.state_dict(), PATH)
             act_dim=act_dim,
             max_length=K,
             max_ep_len=max_ep_len,
@@ -252,17 +235,15 @@ def experiment(
             activation_function=variant['activation_function'],
             n_positions=1024,
             resid_pdrop=variant['dropout'],
-            attn_pdrop=variant['dropout'],
-        )
-    elif model_type == 'bc':
-        model = MLPBCModel(
-            state_dim=state_dim,
+        pt
+            get_batch=get_batch,
+            scheduler=schedudim,
             act_dim=act_dim,
             max_length=K,
             hidden_size=variant['embed_dim'],
             n_layer=variant['n_layer'],
         )
-    else:
+    else:torch.save(model.state_dict(), PATH)
         raise NotImplementedError
 
     model = model.to(device=device)
@@ -270,13 +251,7 @@ def experiment(
     warmup_steps = variant['warmup_steps']
     optimizer = torch.optim.AdamW(
         model.parameters(),
-        lr=variant['learning_rate'],
-        weight_decay=variant['weight_decay'],
-    )
-    scheduler = torch.optim.lr_scheduler.LambdaLR(
-        optimizer,
-        lambda steps: min((steps+1)/warmup_steps, 1)
-    )
+        lr=variant['learning_rate'],f'data/kitchen-partial-v0.pkl'del.state_dict(), PATH)
 
     if model_type == 'dt':
         trainer = SequenceTrainer(
@@ -308,11 +283,18 @@ def experiment(
         )
         # wandb.watch(model)  # wandb has some bug
 
+    # Test of initial save (Please comment out for real runs)
+    iter = 0
+    save_path = os.path.join(variant['model_savepath'],f'{model_type}_{env_name}_{iter}.pt')
+    torch.save(trainer.model.state_dict(), save_path)
+
     for iter in range(variant['max_iters']):
         outputs = trainer.train_iteration(num_steps=variant['num_steps_per_iter'], iter_num=iter+1, print_logs=True)
         if log_to_wandb:
             wandb.log(outputs)
-
+        # save model
+        save_path = os.path.join(variant['model_savepath'],f'{model_type}_{env_name}_{iter}.pt')
+        torch.save(trainer.model.state_dict(), save_path)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -336,6 +318,7 @@ if __name__ == '__main__':
     parser.add_argument('--num_steps_per_iter', type=int, default=10000)
     parser.add_argument('--device', type=str, default='cuda')
     parser.add_argument('--log_to_wandb', '-w', type=bool, default=False)
+    parser.add_argument('--model_savepath', type=str, default=os.path.join('.','models'))
     
     args = parser.parse_args()
 
