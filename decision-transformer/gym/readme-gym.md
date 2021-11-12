@@ -6,11 +6,11 @@ To run experiments
 
 Naive evaluation: 
 ``` bash
-CUDA_VISIBLE_DEVICES=0 python experiment.py --env kitchen-complete --dataset complete --model_savepath /proj/vondrick2/james/robotics/kitchen_complete/
+CUDA_VISIBLE_DEVICES=0 python experiment.py --env kitchen-complete --dataset complete --model_savepath /proj/vondrick2/james/robotics/kitchen_complete/ -w /proj/vondrick2/james/robotics/logs
 
-CUDA_VISIBLE_DEVICES=1 python experiment.py --env kitchen-mixed --dataset mixed --model_savepath /proj/vondrick2/james/robotics/kitchen_mixed/
+CUDA_VISIBLE_DEVICES=1 python experiment.py --env kitchen-mixed --dataset mixed --model_savepath /proj/vondrick2/james/robotics/kitchen_mixed/ -w /proj/vondrick2/james/robotics/logs
 
-CUDA_VISIBLE_DEVICES=2 python experiment.py --env kitchen-partial --dataset partial --model_savepath /proj/vondrick2/james/robotics/kitchen_partial/
+CUDA_VISIBLE_DEVICES=2 python experiment.py --env kitchen-partial --dataset partial --model_savepath /proj/vondrick2/james/robotics/kitchen_partial/ -w /proj/vondrick2/james/robotics/logs
 ```
 # OpenAI Gym
 
