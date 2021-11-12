@@ -13,6 +13,7 @@ def evaluate_episode(
         mode='normal',
         state_mean=0.,
         state_std=1.,
+        visualize=False
 ):
 
     model.eval()
@@ -33,6 +34,10 @@ def evaluate_episode(
 
     episode_return, episode_length = 0, 0
     for t in range(max_ep_len):
+
+        # visualize environemnt
+        if (visualize == True):
+            env.render()
 
         # add padding
         actions = torch.cat([actions, torch.zeros((1, act_dim), device=device)], dim=0)
@@ -74,6 +79,7 @@ def evaluate_episode_rtg(
         device='cuda',
         target_return=None,
         mode='normal',
+        visualize = False
     ):
 
     model.eval()
@@ -100,6 +106,10 @@ def evaluate_episode_rtg(
 
     episode_return, episode_length = 0, 0
     for t in range(max_ep_len):
+
+        # visualize environemnt
+        if (visualize == True):
+            env.render()
 
         # add padding
         actions = torch.cat([actions, torch.zeros((1, act_dim), device=device)], dim=0)
