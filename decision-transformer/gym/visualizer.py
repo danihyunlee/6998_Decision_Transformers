@@ -16,7 +16,7 @@ from decision_transformer.models.mlp_bc import MLPBCModel
 from decision_transformer.training.act_trainer import ActTrainer
 from decision_transformer.training.seq_trainer import SequenceTrainer
 
-root = '/proj/vondrick2/james/robotics/'
+root = './'
 
 def discount_cumsum(x, gamma):
     discount_cumsum = np.zeros_like(x)
@@ -30,11 +30,12 @@ def experiment(
         exp_prefix,
         variant,
 ):
-    device = variant.get('device', 'cuda')
+    device = variant.get('device')
     log_to_wandb = variant.get('log_to_wandb', False)
 
     env_name, dataset = variant['env'], variant['dataset']
     model_type = variant['model_type']
+    model_name = variant['model_name']
     group_name = f'{exp_prefix}-{env_name}-{dataset}'
     exp_prefix = f'{group_name}-{random.randint(int(1e5), int(1e6) - 1)}'
 
@@ -300,24 +301,24 @@ def experiment(
         # wandb.watch(model)  # wandb has some bug
     """
     # Loading saved model
-    trainer.model.load_state_dict(torch.load(variant['model_savepath']+variant['model_name']))
+    model.load_state_dict(torch.load(variant['model_savepath']+variant['model_name'],map_location='cpu'))
 
     eval_fns = []
     for tar in env_targets:
-        if model_type == 'dt':
-            outputs = evaluate_episode_rtg(env,state_dim,
-                        act_dim,trainer.model,
-                        max_ep_len=1000,
-                        scale=1000.,
-                        state_mean=0.,
-                        state_std=1.,
-                        device='cuda',
-                        target_return=None,
-                        mode='normal',
-                        visualize = True
-                    )
-            for k, v in outputs.items():
-                logs[f'evaluation/{k}'] = v
+        with torch.no_grad():
+            if model_type == 'dt':
+                outputs = evaluate_episode_rtg(env,state_dim,
+                            act_dim,model,
+                            max_ep_len=max_ep_len,
+                            scale=scale,
+                            state_mean=state_mean,
+                            state_std=state_std,
+                            device=device,
+                            target_return=env_targets[0]/scale,
+                            mode='normal',
+                            visualize = True
+                        )
+            print(outputs)
             
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -342,7 +343,7 @@ if __name__ == '__main__':
     parser.add_argument('--device', type=str, default='cuda')
     parser.add_argument('--log_to_wandb', '-w', type=bool, default=False)
     parser.add_argument('--model_savepath', type=str, default=os.path.join('.','models'))
-    parser.add_argument('--model_name', type=str, default=''))
+    parser.add_argument('--model_name', type=str, default='')
     
     args = parser.parse_args()
 

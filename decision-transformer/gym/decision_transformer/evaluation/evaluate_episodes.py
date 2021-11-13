@@ -1,6 +1,10 @@
 import numpy as np
 import torch
 
+"""
+Example to run this script!
+python ./visualizer.py --env kitchen-complete --model_savepath ../../ --model_name dt_kitchen-complete_9.pt --device cpu
+"""
 
 def evaluate_episode(
         env,
@@ -37,7 +41,8 @@ def evaluate_episode(
 
         # visualize environemnt
         if (visualize == True):
-            env.render()
+            a1 = env.render(mode="rgb_array", width=300,height=300)
+            print(a1)
 
         # add padding
         actions = torch.cat([actions, torch.zeros((1, act_dim), device=device)], dim=0)
@@ -51,7 +56,6 @@ def evaluate_episode(
         )
         actions[-1] = action
         action = action.detach().cpu().numpy()
-
         state, reward, done, _ = env.step(action)
 
         cur_state = torch.from_numpy(state).to(device=device).reshape(1, state_dim)
@@ -109,7 +113,7 @@ def evaluate_episode_rtg(
 
         # visualize environemnt
         if (visualize == True):
-            env.render()
+            env.render(mode='human')
 
         # add padding
         actions = torch.cat([actions, torch.zeros((1, act_dim), device=device)], dim=0)
@@ -124,8 +128,9 @@ def evaluate_episode_rtg(
         )
         actions[-1] = action
         action = action.detach().cpu().numpy()
+        state, reward, done, info = env.step(action)
 
-        state, reward, done, _ = env.step(action)
+        # qp 9, obj_qp 21, goal 30
 
         cur_state = torch.from_numpy(state).to(device=device).reshape(1, state_dim)
         states = torch.cat([states, cur_state], dim=0)
@@ -147,4 +152,6 @@ def evaluate_episode_rtg(
         if done:
             break
 
+    #print(info["obs_dict"])
+    #print(state)
     return episode_return, episode_length
