@@ -40,7 +40,6 @@ def evaluate_episode(
         # visualize environemnt
         if (visualize == True):
             a1 = env.render(mode="rgb_array", width=300,height=300)
-            print(a1)
 
         # add padding
         actions = torch.cat([actions, torch.zeros((1, act_dim), device=device)], dim=0)
@@ -111,14 +110,15 @@ def evaluate_episode_rtg(
 
         # visualize environemnt
         if (visualize == True):
+            """
             depth_img = env.render(mode='rgb_array', depth=True)
             plt.imshow(depth_img)
             plt.savefig('./'+str(t)+'_depth.png')
             rgb_img = env.render(mode='rgb_array', depth=False)
             plt.imshow(rgb_img)
             plt.savefig('./'+str(t)+'_rgb.png')
-
-
+            """
+            env.render(mode='human')
             
         # add padding
         actions = torch.cat([actions, torch.zeros((1, act_dim), device=device)], dim=0)
