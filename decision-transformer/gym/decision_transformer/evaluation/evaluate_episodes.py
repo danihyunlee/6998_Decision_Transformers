@@ -1,10 +1,8 @@
 import numpy as np
 import torch
+import mujoco_py
+import matplotlib.pyplot as plt
 
-"""
-Example to run this script!
-python ./visualizer.py --env kitchen-complete --model_savepath ../../ --model_name dt_kitchen-complete_9.pt --device cpu
-"""
 
 def evaluate_episode(
         env,
@@ -113,8 +111,15 @@ def evaluate_episode_rtg(
 
         # visualize environemnt
         if (visualize == True):
-            env.render(mode='human')
+            depth_img = env.render(mode='rgb_array', depth=True)
+            plt.imshow(depth_img)
+            plt.savefig('./'+str(t)+'_depth.png')
+            rgb_img = env.render(mode='rgb_array', depth=False)
+            plt.imshow(rgb_img)
+            plt.savefig('./'+str(t)+'_rgb.png')
 
+
+            
         # add padding
         actions = torch.cat([actions, torch.zeros((1, act_dim), device=device)], dim=0)
         rewards = torch.cat([rewards, torch.zeros(1, device=device)])

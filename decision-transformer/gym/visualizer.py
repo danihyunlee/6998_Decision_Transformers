@@ -18,6 +18,12 @@ from decision_transformer.training.seq_trainer import SequenceTrainer
 
 root = './'
 
+"""
+Example to run this script!
+python ./visualizer.py --env kitchen-complete --model_savepath ../../ --model_name dt_kitchen-complete_9.pt --device cpu
+"""
+
+
 def discount_cumsum(x, gamma):
     discount_cumsum = np.zeros_like(x)
     discount_cumsum[-1] = x[-1]
