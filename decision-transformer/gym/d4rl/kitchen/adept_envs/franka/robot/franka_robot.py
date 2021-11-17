@@ -134,7 +134,7 @@ class Robot(base_robot.BaseRobot):
 
 
     # get observation
-    def get_obs(self, env, robot_noise_ratio=1, object_noise_ratio=1, sim_mimic_hardware=True):
+    def get_obs(self, env, robot_noise_ratio=0, object_noise_ratio=0, sim_mimic_hardware=True):
         if self.is_hardware:
             raise NotImplementedError()
 
@@ -151,12 +151,14 @@ class Robot(base_robot.BaseRobot):
             self.time = env.sim.data.time
 
             # Simulate observation noise
+            """
             if not env.initializing:
                 qp += robot_noise_ratio*self.robot_pos_noise_amp[:self.n_jnt]*env.np_random.uniform(low=-1., high=1., size=self.n_jnt)
                 qv += robot_noise_ratio*self.robot_vel_noise_amp[:self.n_jnt]*env.np_random.uniform(low=-1., high=1., size=self.n_jnt)
                 if self.has_obj:
                     qp_obj += robot_noise_ratio*self.robot_pos_noise_amp[-self.n_obj:]*env.np_random.uniform(low=-1., high=1., size=self.n_obj)
                     qv_obj += robot_noise_ratio*self.robot_vel_noise_amp[-self.n_obj:]*env.np_random.uniform(low=-1., high=1., size=self.n_obj)
+            """
 
         # cache observations
         obs = observation(time=self.time, qpos_robot=qp, qvel_robot=qv, qpos_object=qp_obj, qvel_object=qv_obj)

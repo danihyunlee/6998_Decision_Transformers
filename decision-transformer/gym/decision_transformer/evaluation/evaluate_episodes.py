@@ -25,6 +25,7 @@ def evaluate_episode(
     state_std = torch.from_numpy(state_std).to(device=device)
 
     state = env.reset()
+    env.sim.data.qpos[:] = state[:30].copy()
 
     # we keep all the histories on the device
     # note that the latest action and reward will be "padding"
@@ -33,6 +34,8 @@ def evaluate_episode(
     rewards = torch.zeros(0, device=device, dtype=torch.float32)
     target_return = torch.tensor(target_return, device=device, dtype=torch.float32)
     sim_states = []
+
+
 
     episode_return, episode_length = 0, 0
     for t in range(max_ep_len):
@@ -90,8 +93,17 @@ def evaluate_episode_rtg(
     state_std = torch.from_numpy(state_std).to(device=device)
 
     state = env.reset()
-    if mode == 'noise':
-        state = state + np.random.normal(0, 0.1, size=state.shape)
+    init_qpos = state[:30].copy()
+
+    # prepare env
+
+    env.sim.model.key_qpos[:] = init_qpos
+    env.sim.forward()
+    #env.sim.data.qvel[:] = init_qvel
+    #env.sim.forward()
+
+    #if mode == 'noise':
+     #   state = state + np.random.normal(0, 0.1, size=state.shape)
 
     # we keep all the histories on the device
     # note that the latest action and reward will be "padding"
@@ -134,7 +146,6 @@ def evaluate_episode_rtg(
         actions[-1] = action
         action = action.detach().cpu().numpy()
         state, reward, done, info = env.step(action)
-
         # qp 9, obj_qp 21, goal 30
 
         cur_state = torch.from_numpy(state).to(device=device).reshape(1, state_dim)
@@ -156,7 +167,4 @@ def evaluate_episode_rtg(
 
         if done:
             break
-
-    #print(info["obs_dict"])
-    #print(state)
     return episode_return, episode_length

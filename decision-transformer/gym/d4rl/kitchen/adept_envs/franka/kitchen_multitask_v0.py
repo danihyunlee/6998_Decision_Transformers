@@ -40,7 +40,8 @@ class KitchenV0(robot_env.RobotEnv):
     def __init__(self, robot_params={}, frame_skip=40):
         self.goal_concat = True
         self.obs_dict = {}
-        self.robot_noise_ratio = 0.1  # 10% as per robot_config specs
+        self.robot_noise_ratio = 1
+        print("here")  # 10% as per robot_config specs
         self.goal = np.zeros((30,))
 
         super().__init__(
