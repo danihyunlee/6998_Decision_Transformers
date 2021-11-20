@@ -93,7 +93,7 @@ class KitchenBase(KitchenTaskRelaxV1, OfflineEnv):
         #print(super(KitchenTaskRelaxV1, self)._sim)
         
         if mode =='rgb_array':
-            camera = engine.MovableCamera(self.sim, 150, 200)
+            camera = engine.MovableCamera(self.sim, 224, 224)
             camera.set_pose(distance=2.2, lookat=[-0.2, .5, 2.], azimuth=110, elevation=-35)
             if depth == True:
                 return camera.render(depth=True)
