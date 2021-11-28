@@ -1,0 +1,5 @@
+Traceback (most recent call last):
+  File "experiment.py", line 352, in <module>
+    experiment('gym-experiment', variant=vars(args))
+  File "experiment.py", line 319, in experiment
+    outputs = trainer.train_iteration(num_steps=variant['num_steps_per_iter'], iter_num=iter+1, print_logs=True)

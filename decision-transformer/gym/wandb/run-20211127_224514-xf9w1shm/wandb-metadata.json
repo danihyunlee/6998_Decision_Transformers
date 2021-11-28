@@ -1,0 +1,37 @@
+{
+    "root": "/home/jlw2247/DT/6998_Decision_Transformers",
+    "program": "experiment.py",
+    "git": {
+        "remote": "https://github.com/danihyunlee/6998_Decision_Transformers.git",
+        "commit": "6117241bc68e88bbef38febfd68bdc7c75a1de89"
+    },
+    "email": "jlw2247@columbia.edu",
+    "startedAt": "2021-11-27T22:45:14.239049",
+    "host": "main-gpu",
+    "username": "jlw2247",
+    "executable": "/opt/conda/envs/main/bin/python",
+    "os": "Linux-4.19.0-18-cloud-amd64-x86_64-with-glibc2.10",
+    "python": "3.8.12",
+    "gpu": "A100-SXM4-40GB",
+    "gpu_count": 1,
+    "cpu_count": 12,
+    "args": [
+        "--env",
+        "kitchen-complete",
+        "--dataset",
+        "complete",
+        "--model_savepath",
+        "/home/jlw2247/DT/outputs/kitchen_K200/",
+        "-w",
+        "/home/jlw2247/DT/logs/",
+        "--K",
+        "200"
+    ],
+    "state": "killed",
+    "jobType": null,
+    "mode": "run",
+    "name": "gym-experiment-kitchen-complete-complete-424247",
+    "project": "decision-transformer",
+    "heartbeatAt": "2021-11-28T04:24:25.881815",
+    "exitcode": 255
+}

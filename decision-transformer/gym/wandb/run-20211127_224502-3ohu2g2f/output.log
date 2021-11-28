@@ -1,0 +1,16 @@
+================================================================================
+Iteration 1
+time/training: 791.7941560745239
+evaluation/target_100_return_mean: 2.0
+evaluation/target_100_return_std: 0.0
+evaluation/target_100_length_mean: 206.0
+evaluation/target_100_length_std: 0.0
+evaluation/target_50_return_mean: 2.0
+evaluation/target_50_return_std: 0.0
+evaluation/target_50_length_mean: 206.0
+evaluation/target_50_length_std: 0.0
+time/total: 16940.544020175934
+time/evaluation: 16147.618266105652
+training/train_loss_mean: 0.04051353570383508
+training/train_loss_std: 0.07589435611094728
+training/action_error: 0.002569993259385228
