@@ -91,7 +91,7 @@ class KitchenBase(KitchenTaskRelaxV1, OfflineEnv):
     def render(self, mode='rgb_array',depth=False):
         # Disable rendering to speed up environment evaluation.
         #print(super(KitchenTaskRelaxV1, self)._sim)
-        
+        """
         if mode =='rgb_array':
             camera = engine.MovableCamera(self.sim, 224, 224)
             camera.set_pose(distance=2.2, lookat=[-0.2, .5, 2.], azimuth=110, elevation=-35)
@@ -101,6 +101,8 @@ class KitchenBase(KitchenTaskRelaxV1, OfflineEnv):
                 return camera.render()
         else:
             super(KitchenTaskRelaxV1, self).render()
+        """
+        return []
         #return super(KitchenTaskRelaxV1, self).render(mode='rgb_array')
         
         
