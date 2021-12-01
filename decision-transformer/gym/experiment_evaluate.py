@@ -17,7 +17,9 @@ from decision_transformer.models.decision_transformer import DecisionTransformer
 from decision_transformer.models.mlp_bc import MLPBCModel
 
 root = '/proj/vondrick2/james/robotics/'
-# root = './'
+root = './'
+
+"""sample script: python experiment_evaluate.py --env kitchen-complete --model_savepath ../../ --model_name dt_kitchen-complete_rgbd_2.pt --device cpu --train_with_rgb true --train_with_depth true --num_eval_episodes 10"""
 
 class RGB_Encoder(nn.Module):    
     def __init__(self, encoded_space_dim,fc2_input_dim):
@@ -107,12 +109,34 @@ def evaluate_episode_rgbd(
     state_std = torch.from_numpy(state_std).to(device=device)
 
     state = env.reset()
+
     init_qpos = state[:30].copy()
 
     # prepare env
 
     env.sim.model.key_qpos[:] = init_qpos
     env.sim.forward()
+
+    state = state.reshape(1,60)
+
+    if variant['train_with_rgb']:
+        rgb_input = env.render(mode='rgb_array', depth=False)
+
+        """ Add in adversarial attacks for rgb_input here"""
+        
+        rgb_input = rgb_input.reshape(1,rgb_input.shape[0],rgb_input.shape[1],3)
+        rgb_input = torch.tensor(rgb_input.transpose(0,3,1,2).copy())
+        encoded_input = img_encoder(rgb_input.float()).detach().numpy()
+        encoded_input = encoded_input.reshape(1,32)
+        state = np.concatenate((state,encoded_input),axis = 1)
+
+    if variant['train_with_depth']:
+        depth_input = env.render(mode='rgb_array', depth=True)
+        depth_input = depth_input.reshape(1,depth_input.shape[0],depth_input.shape[1],1)
+        depth_input = torch.tensor(depth_input.transpose(0,3,1,2).copy())
+        encoded_input = depth_encoder(depth_input.float()).detach().numpy()
+        encoded_input = encoded_input.reshape(1,32)
+        state = np.concatenate((state,encoded_input),axis = 1)
 
     #if mode == 'noise':
      #   state = state + np.random.normal(0, 0.1, size=state.shape)
@@ -129,6 +153,7 @@ def evaluate_episode_rgbd(
     timesteps = torch.tensor(0, device=device, dtype=torch.long).reshape(1, 1)
 
     episode_return, episode_length = 0, 0
+
     for t in range(max_ep_len):
 
         # visualize environemnt
@@ -146,7 +171,6 @@ def evaluate_episode_rgbd(
         # add padding
         actions = torch.cat([actions, torch.zeros((1, act_dim), device=device)], dim=0)
         rewards = torch.cat([rewards, torch.zeros(1, device=device)])
-
         action = model.get_action(
             (states.to(dtype=torch.float32) - state_mean) / state_std,
             actions.to(dtype=torch.float32),
@@ -157,30 +181,30 @@ def evaluate_episode_rgbd(
         actions[-1] = action
         action = action.detach().cpu().numpy()
         state, reward, done, info = env.step(action)
+        state = state.reshape(1,60)
         # qp 9, obj_qp 21, goal 30
         
         rgb_input = None
         depth_input = None
 
-        print('1',state.shape)
         if variant['train_with_rgb']:
             rgb_input = env.render(mode='rgb_array', depth=False)
-            rgb_input = rgb_input.reshape(rgb_input.shape[0],rgb_input.shape[1],3)
-            rgb_input = torch.tensor(rgb_input.transpose(3,1,2))
+
+            """ Add in adversarial attacks for rgb_input here"""
+
+            rgb_input = rgb_input.reshape(1,rgb_input.shape[0],rgb_input.shape[1],3)
+            rgb_input = torch.tensor(rgb_input.transpose(0,3,1,2).copy())
             encoded_input = img_encoder(rgb_input.float()).detach().numpy()
-            encoded_input = encoded_input.reshape(1,encoded_input.shape[0])
+            encoded_input = encoded_input.reshape(1,32)
             state = np.concatenate((state,encoded_input),axis = 1)
 
-        print('2',state.shape)
         if variant['train_with_depth']:
             depth_input = env.render(mode='rgb_array', depth=True)
-            depth_input = depth_input.reshape(depth_input.shape[0],depth_input.shape[1],1)
-            depth_input = torch.tensor(depth_input.transpose(3,1,2))
-            encoded_input = depth_encoder(depth_input).detach().numpy()
-            encoded_input = encoded_input.reshape(1,encoded_input.shape[0])
+            depth_input = depth_input.reshape(1,depth_input.shape[0],depth_input.shape[1],1)
+            depth_input = torch.tensor(depth_input.transpose(0,3,1,2).copy())
+            encoded_input = depth_encoder(depth_input.float()).detach().numpy()
+            encoded_input = encoded_input.reshape(1,32)
             state = np.concatenate((state,encoded_input),axis = 1)
-
-        print('3',state.shape)
 
         cur_state = torch.from_numpy(state).to(device=device).reshape(1, state_dim)
 
@@ -248,7 +272,7 @@ def experiment_evaluate(
     elif env_name == 'kitchen-complete':
         env = gym.make('kitchen-complete-v0')
         max_ep_len = 206
-        env_targets = [100, 50] # placeholder for now, not relevant unless we work with multitask learning
+        env_targets = [4, 235] # placeholder for now, not relevant unless we work with multitask learning
         scale = 10. # placeholder for now
     elif env_name == 'kitchen-partial':
         env = gym.make('kitchen-partial-v0')
@@ -272,15 +296,15 @@ def experiment_evaluate(
     depth_encoder = None
 
     if variant['train_with_rgb']:
-        state_dim += 32*4   # img 32*4 dim
+        state_dim += 32   # img 32*4 dim
         img_encoder = RGB_Encoder(encoded_space_dim=32,fc2_input_dim=128)
-        img_encoder.load_state_dict(torch.load("../../img_depth_encoder/encoder_img.pth"))
+        img_encoder.load_state_dict(torch.load("../../img_depth_encoder/encoder_img.pth",map_location=variant['device']))
         img_encoder.to(device=device)
 
     if variant['train_with_depth']:
-        state_dim += 32*1   # depth 32*1 dim
+        state_dim += 32   # depth 32*1 dim
         depth_encoder = Depth_Encoder(encoded_space_dim=32,fc2_input_dim=128)
-        depth_encoder.load_state_dict(torch.load("../../img_depth_encoder/encoder_depth.pth"))
+        depth_encoder.load_state_dict(torch.load("../../img_depth_encoder/encoder_depth.pth",map_location=variant['device']))
         depth_encoder.to(device=device)
 
     act_dim = env.action_space.shape[0]
@@ -337,7 +361,6 @@ def experiment_evaluate(
     print('=' * 50)
 
     K = variant['K']
-    batch_size = variant['batch_size']
     num_eval_episodes = variant['num_eval_episodes']
     pct_traj = variant.get('pct_traj', 1.)
 
@@ -353,93 +376,32 @@ def experiment_evaluate(
         ind -= 1
     sorted_inds = sorted_inds[-num_trajectories:]
 
-    # used to reweight sampling so we sample according to timesteps instead of trajectories
-    p_sample = traj_lens[sorted_inds] / sum(traj_lens[sorted_inds])
-
-    def get_batch(batch_size=256, max_len=K):
-        batch_inds = np.random.choice(
-            np.arange(num_trajectories),
-            size=batch_size,
-            replace=True,
-            p=p_sample,  # reweights so we sample according to timesteps
-        )
-
-        s, a, r, d, rtg, timesteps, mask = [], [], [], [], [], [], []
-        for i in range(batch_size):
-            traj = trajectories[int(sorted_inds[batch_inds[i]])]
-            si = random.randint(0, traj['rewards'].shape[0] - 1)
-
-            # get sequences from dataset
-
-            # append observation, rgb, depth to state if needed
-            state = traj['observations'][si:si + max_len].reshape(1, -1, original_state_dim)
-            if variant['train_with_rgb']:
-                rgb_input = np.array(traj['rgb'][si:si + max_len])
-                rgb_input = rgb_input.reshape(rgb_input.shape[0],rgb_input.shape[1],rgb_input.shape[2],3)
-                rgb_input = torch.tensor(rgb_input.transpose(0,3,1,2))
-                encoded_input = img_encoder(rgb_input.float()).detach().numpy()
-                encoded_input = encoded_input.reshape(1,encoded_input.shape[0],encoded_input.shape[1])
-                state = np.concatenate((state,encoded_input),axis = 2)
-
-                """placeholder for white noise attack"""
-                # if variant['white_noise_attack_rgb']:
-                    # add in white noise attack
-                
-            if variant['train_with_depth']:
-                depth_input = np.array(traj['depth'][si:si + max_len])
-                depth_input = depth_input.reshape(depth_input.shape[0],depth_input.shape[1],depth_input.shape[2],1)
-                depth_input = torch.tensor(depth_input.transpose(0,3,1,2))
-                encoded_input = depth_encoder(depth_input).detach().numpy()
-                encoded_input = encoded_input.reshape(1,encoded_input.shape[0],encoded_input.shape[1])
-                state = np.concatenate((state,encoded_input),axis = 2)
-
-                """placeholder for white noise attack"""
-                # if variant['white_noise_attack_depth']:
-                    # add in white noise attack
-
-            s.append(state)
-            a.append(traj['actions'][si:si + max_len].reshape(1, -1, act_dim))
-            r.append(traj['rewards'][si:si + max_len].reshape(1, -1, 1))
-            if 'terminals' in traj:
-                d.append(traj['terminals'][si:si + max_len].reshape(1, -1))
-            else:
-                d.append(traj['dones'][si:si + max_len].reshape(1, -1))
-            timesteps.append(np.arange(si, si + s[-1].shape[1]).reshape(1, -1))
-            timesteps[-1][timesteps[-1] >= max_ep_len] = max_ep_len-1  # padding cutoff
-            rtg.append(discount_cumsum(traj['rewards'][si:], gamma=1.)[:s[-1].shape[1] + 1].reshape(1, -1, 1))
-            if rtg[-1].shape[1] <= s[-1].shape[1]:
-                rtg[-1] = np.concatenate([rtg[-1], np.zeros((1, 1, 1))], axis=1)
-
-            # padding and state + reward normalization
-            tlen = s[-1].shape[1]
-            s[-1] = np.concatenate([np.zeros((1, max_len - tlen, state_dim)), s[-1]], axis=1)
-            s[-1] = (s[-1] - state_mean) / state_std
-            a[-1] = np.concatenate([np.ones((1, max_len - tlen, act_dim)) * -10., a[-1]], axis=1)
-            r[-1] = np.concatenate([np.zeros((1, max_len - tlen, 1)), r[-1]], axis=1)
-            d[-1] = np.concatenate([np.ones((1, max_len - tlen)) * 2, d[-1]], axis=1)
-            rtg[-1] = np.concatenate([np.zeros((1, max_len - tlen, 1)), rtg[-1]], axis=1) / scale
-            timesteps[-1] = np.concatenate([np.zeros((1, max_len - tlen)), timesteps[-1]], axis=1)
-            mask.append(np.concatenate([np.zeros((1, max_len - tlen)), np.ones((1, tlen))], axis=1))
-
-        s = torch.from_numpy(np.concatenate(s, axis=0)).to(dtype=torch.float32, device=device)
-        a = torch.from_numpy(np.concatenate(a, axis=0)).to(dtype=torch.float32, device=device)
-        r = torch.from_numpy(np.concatenate(r, axis=0)).to(dtype=torch.float32, device=device)
-        d = torch.from_numpy(np.concatenate(d, axis=0)).to(dtype=torch.long, device=device)
-        rtg = torch.from_numpy(np.concatenate(rtg, axis=0)).to(dtype=torch.float32, device=device)
-        timesteps = torch.from_numpy(np.concatenate(timesteps, axis=0)).to(dtype=torch.long, device=device)
-        mask = torch.from_numpy(np.concatenate(mask, axis=0)).to(device=device)
-
-        return s, a, r, d, rtg, timesteps, mask
-
     def eval_episodes(variant, target_rew, img_encoder=None, depth_encoder=None):
-        def fn(model):
-            returns, lengths = [], []
-            for _ in range(num_eval_episodes):
-                with torch.no_grad():
-                    # Added in code for evaluation in kitchen for DT
-                    if env_name == 'kitchen-complete' and model_type == 'dt':
-                        ret, length = evaluate_episode_rgbd(
-                            variant,
+        returns, lengths = [], []
+        for _ in range(num_eval_episodes):
+            with torch.no_grad():
+                # Added in code for evaluation in kitchen for DT
+                if env_name == 'kitchen-complete' and model_type == 'dt':
+                    ret, length = evaluate_episode_rgbd(
+                        variant,
+                        env,
+                        state_dim,
+                        act_dim,
+                        model,
+                        max_ep_len=max_ep_len,
+                        scale=scale,
+                        target_return=target_rew/scale,
+                        mode=mode,
+                        state_mean=state_mean,
+                        state_std=state_std,
+                        device=device,
+                        img_encoder=img_encoder,
+                        depth_encoder=depth_encoder,
+                        visualize=False
+                    )
+                else:
+                    if model_type == 'dt':
+                        ret, length = evaluate_episode_rtg(
                             env,
                             state_dim,
                             act_dim,
@@ -451,46 +413,29 @@ def experiment_evaluate(
                             state_mean=state_mean,
                             state_std=state_std,
                             device=device,
-                            img_encoder=img_encoder,
-                            depth_encoder=depth_encoder
                         )
                     else:
-                        if model_type == 'dt':
-                            ret, length = evaluate_episode_rtg(
-                                env,
-                                state_dim,
-                                act_dim,
-                                model,
-                                max_ep_len=max_ep_len,
-                                scale=scale,
-                                target_return=target_rew/scale,
-                                mode=mode,
-                                state_mean=state_mean,
-                                state_std=state_std,
-                                device=device,
-                            )
-                        else:
-                            ret, length = evaluate_episode(
-                                env,
-                                state_dim,
-                                act_dim,
-                                model,
-                                max_ep_len=max_ep_len,
-                                target_return=target_rew/scale,
-                                mode=mode,
-                                state_mean=state_mean,
-                                state_std=state_std,
-                                device=device,
-                            )
-                    returns.append(ret)
-                    lengths.append(length)
-            return{
-                f'target_{target_rew}_return_mean': np.mean(returns),
-                f'target_{target_rew}_return_std': np.std(returns),
-                f'target_{target_rew}_length_mean': np.mean(lengths),
-                f'target_{target_rew}_length_std': np.std(lengths),
-            }
-        return fn
+                        ret, length = evaluate_episode(
+                            env,
+                            state_dim,
+                            act_dim,
+                            model,
+                            max_ep_len=max_ep_len,
+                            target_return=target_rew/scale,
+                            mode=mode,
+                            state_mean=state_mean,
+                            state_std=state_std,
+                            device=device,
+                        )
+                returns.append(ret)
+                lengths.append(length)
+                print('episode return', ret, 'episode length', length)
+        return{
+            f'target_{target_rew}_return_mean': np.mean(returns),
+            f'target_{target_rew}_return_std': np.std(returns),
+            f'target_{target_rew}_length_mean': np.mean(lengths),
+            f'target_{target_rew}_length_std': np.std(lengths),
+        }
 
     if model_type == 'dt':
         model = DecisionTransformer(
@@ -535,7 +480,8 @@ def experiment_evaluate(
     model.to(device=device)
 
     # Evaluate
-    get_batch
+    if (variant['env']=='kitchen-complete'):
+        print(eval_episodes(variant, env_targets[0], img_encoder=img_encoder, depth_encoder=depth_encoder))
 
     
 
@@ -550,7 +496,6 @@ if __name__ == '__main__':
     parser.add_argument('--white_noise_attack_rgb', type=bool, default=False)
     parser.add_argument('--white_noise_attack_depth', type=bool, default=False)
     parser.add_argument('--pct_traj', type=float, default=1.)
-    parser.add_argument('--batch_size', type=int, default=64)
     parser.add_argument('--model_type', type=str, default='dt')  # dt for decision transformer, bc for behavior cloning
     parser.add_argument('--embed_dim', type=int, default=128)
     parser.add_argument('--n_layer', type=int, default=3)
