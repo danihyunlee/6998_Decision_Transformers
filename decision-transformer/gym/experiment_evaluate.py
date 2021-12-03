@@ -85,6 +85,7 @@ class Depth_Encoder(nn.Module):
 
 
 def evaluate_episode_rgbd(
+        state_init,
         variant,
         env,
         state_dim,
@@ -110,13 +111,17 @@ def evaluate_episode_rgbd(
 
     state = env.reset()
 
-    init_qpos = state[:30].copy()
+
+    #init_qpos = state[:30].copy()
+    init_qpos = state_init[:30].copy()
+    init_qpos = init_qpos + np.random.normal(0, 0.001, size=init_qpos.shape)
 
     # prepare env
 
     env.sim.model.key_qpos[:] = init_qpos
     env.sim.forward()
 
+    state[:30] = init_qpos
     state = state.reshape(1,60)
 
     if variant['train_with_rgb']:
@@ -139,7 +144,7 @@ def evaluate_episode_rgbd(
         state = np.concatenate((state,encoded_input),axis = 1)
 
     #if mode == 'noise':
-     #   state = state + np.random.normal(0, 0.1, size=state.shape)
+    # state = state + np.random.normal(0, 0.001, size=state.shape)
 
     # we keep all the histories on the device
     # note that the latest action and reward will be "padding"
@@ -154,8 +159,9 @@ def evaluate_episode_rgbd(
 
     episode_return, episode_length = 0, 0
 
+    total_reward = 0
+    total_return = 0
     for t in range(max_ep_len):
-
         # visualize environemnt
         if (visualize == True):
             # """
@@ -222,11 +228,15 @@ def evaluate_episode_rgbd(
              torch.ones((1, 1), device=device, dtype=torch.long) * (t+1)], dim=1)
 
         episode_return += reward
+        if reward == 1:
+            total_reward += 1
+        total_return += total_reward
+
         episode_length += 1
 
         if done:
             break
-    return episode_return, episode_length
+    return episode_return, episode_length, total_return
 
 def discount_cumsum(x, gamma):
     discount_cumsum = np.zeros_like(x)
@@ -272,7 +282,7 @@ def experiment_evaluate(
     elif env_name == 'kitchen-complete':
         env = gym.make('kitchen-complete-v0')
         max_ep_len = 206
-        env_targets = [4, 235] # placeholder for now, not relevant unless we work with multitask learning
+        env_targets = [4] # placeholder for now, not relevant unless we work with multitask learning
         scale = 10. # placeholder for now
     elif env_name == 'kitchen-partial':
         env = gym.make('kitchen-partial-v0')
@@ -296,7 +306,7 @@ def experiment_evaluate(
     depth_encoder = None
 
     if variant['train_with_rgb']:
-        state_dim += 32   # img 32*4 dim
+        state_dim += 32   # img 32*1 dim
         img_encoder = RGB_Encoder(encoded_space_dim=32,fc2_input_dim=128)
         img_encoder.load_state_dict(torch.load("../../img_depth_encoder/encoder_img.pth",map_location=variant['device']))
         img_encoder.to(device=device)
@@ -307,6 +317,7 @@ def experiment_evaluate(
         depth_encoder.load_state_dict(torch.load("../../img_depth_encoder/encoder_depth.pth",map_location=variant['device']))
         depth_encoder.to(device=device)
 
+    print(state_dim, variant['train_with_depth'], variant['train_with_rgb'])
     act_dim = env.action_space.shape[0]
 
     # load dataset
@@ -376,13 +387,15 @@ def experiment_evaluate(
         ind -= 1
     sorted_inds = sorted_inds[-num_trajectories:]
 
-    def eval_episodes(variant, target_rew, img_encoder=None, depth_encoder=None):
-        returns, lengths = [], []
+    def eval_episodes(variant, target_rew, states, img_encoder=None, depth_encoder=None):
+        returns, lengths, tot_returns = [], [], []
         for _ in range(num_eval_episodes):
+            state_init = random.choice(states).copy()
             with torch.no_grad():
                 # Added in code for evaluation in kitchen for DT
                 if env_name == 'kitchen-complete' and model_type == 'dt':
-                    ret, length = evaluate_episode_rgbd(
+                    ret, length, tot_ret = evaluate_episode_rgbd(
+                        state_init,
                         variant,
                         env,
                         state_dim,
@@ -397,7 +410,7 @@ def experiment_evaluate(
                         device=device,
                         img_encoder=img_encoder,
                         depth_encoder=depth_encoder,
-                        visualize=False
+                        visualize=variant['visualize']
                     )
                 else:
                     if model_type == 'dt':
@@ -429,12 +442,15 @@ def experiment_evaluate(
                         )
                 returns.append(ret)
                 lengths.append(length)
-                print('episode return', ret, 'episode length', length)
+                tot_returns.append(tot_ret)
+                print('episode return', ret, 'episode length', length, 'total return', tot_ret)
         return{
             f'target_{target_rew}_return_mean': np.mean(returns),
             f'target_{target_rew}_return_std': np.std(returns),
             f'target_{target_rew}_length_mean': np.mean(lengths),
             f'target_{target_rew}_length_std': np.std(lengths),
+            f'target_{target_rew}_total_return_mean': np.mean(tot_returns),
+            f'target_{target_rew}_total_return_std': np.std(tot_returns),
         }
 
     if model_type == 'dt':
@@ -481,7 +497,7 @@ def experiment_evaluate(
 
     # Evaluate
     if (variant['env']=='kitchen-complete'):
-        print(eval_episodes(variant, env_targets[0], img_encoder=img_encoder, depth_encoder=depth_encoder))
+        print(eval_episodes(variant, env_targets[0], states, img_encoder=img_encoder, depth_encoder=depth_encoder))
 
     
 
@@ -493,6 +509,7 @@ if __name__ == '__main__':
     parser.add_argument('--K', type=int, default=20)
     parser.add_argument('--train_with_depth', type=bool, default=False)
     parser.add_argument('--train_with_rgb', type=bool, default=False)
+    parser.add_argument('--visualize', type=bool, default=False)
     parser.add_argument('--white_noise_attack_rgb', type=bool, default=False)
     parser.add_argument('--white_noise_attack_depth', type=bool, default=False)
     parser.add_argument('--pct_traj', type=float, default=1.)
