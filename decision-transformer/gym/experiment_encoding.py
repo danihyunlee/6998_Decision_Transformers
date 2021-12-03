@@ -247,6 +247,10 @@ def experiment(
 
             # append observation, rgb, depth to state if needed
             state = traj['observations'][si:si + max_len].reshape(1, -1, original_state_dim)
+
+            if variant['train_with_objpose'] == False:
+                state = state[:,:,:9]
+
             if variant['train_with_rgb']:
                 rgb_input = np.array(traj['rgb'][si:si + max_len])
                 rgb_input = rgb_input.reshape(rgb_input.shape[0],rgb_input.shape[1],rgb_input.shape[2],3)
@@ -421,6 +425,12 @@ def experiment(
     save_path = os.path.join(variant['model_savepath'],f'{model_type}_{env_name}_{iter}.pt')
     torch.save(trainer.model.state_dict(), save_path)
 
+    print('--train_with_objpose ==> ',variant['train_with_objpose'])
+    print('--train_with_depth ==> ',variant['train_with_depth'])
+    print('--train_with_rgb ==> ',variant['train_with_rgb'])
+    print('--white_noise_attack_rgb ==> ',variant['white_noise_attack_rgb'])
+    print('--white_noise_attack_depth ==> ',variant['white_noise_attack_depth'])
+    
     for iter in range(variant['max_iters']):
         outputs = trainer.train_iteration(num_steps=variant['num_steps_per_iter'], iter_num=iter+1, print_logs=True)
         if log_to_wandb:
@@ -435,10 +445,6 @@ if __name__ == '__main__':
     parser.add_argument('--dataset', type=str, default='medium')  # medium, medium-replay, medium-expert, expert
     parser.add_argument('--mode', type=str, default='normal')  # normal for standard setting, delayed for sparse
     parser.add_argument('--K', type=int, default=20)
-    parser.add_argument('--train_with_depth', type=bool, default=False)
-    parser.add_argument('--train_with_rgb', type=bool, default=False)
-    parser.add_argument('--white_noise_attack_rgb', type=bool, default=False)
-    parser.add_argument('--white_noise_attack_depth', type=bool, default=False)
     parser.add_argument('--pct_traj', type=float, default=1.)
     parser.add_argument('--batch_size', type=int, default=64)
     parser.add_argument('--model_type', type=str, default='dt')  # dt for decision transformer, bc for behavior cloning
@@ -456,6 +462,14 @@ if __name__ == '__main__':
     parser.add_argument('--device', type=str, default='cuda')
     parser.add_argument('--log_to_wandb', '-w', type=bool, default=False)
     parser.add_argument('--model_savepath', type=str, default=os.path.join('.','models'))
+
+
+    """ Added Parameters """
+    parser.add_argument('--train_with_objpose', type=bool, default=True)
+    parser.add_argument('--train_with_depth', type=bool, default=False)
+    parser.add_argument('--train_with_rgb', type=bool, default=False)
+    parser.add_argument('--white_noise_attack_rgb', type=bool, default=False)
+    parser.add_argument('--white_noise_attack_depth', type=bool, default=False)
     
     args = parser.parse_args()
 
