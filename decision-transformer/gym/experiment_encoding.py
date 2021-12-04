@@ -150,8 +150,11 @@ def experiment(
     img_encoder = None
     depth_encoder = None
 
+    if variant['train_with_objpose'] == False:
+        state_dim -= 51
+
     if variant['train_with_rgb']:
-        state_dim += 32*4   # img 32*4 dim
+        state_dim += 32   # img 32*4 dim
         img_encoder = RGB_Encoder(encoded_space_dim=32,fc2_input_dim=128)
         img_encoder.load_state_dict(torch.load("../../img_depth_encoder/encoder_img.pth"))
         img_encoder.to(device=device)
@@ -247,15 +250,18 @@ def experiment(
 
             # append observation, rgb, depth to state if needed
             state = traj['observations'][si:si + max_len].reshape(1, -1, original_state_dim)
+            print("----------")
+            print(state.shape)
 
             if variant['train_with_objpose'] == False:
                 state = state[:,:,:9]
+                print(state.shape)
 
             if variant['train_with_rgb']:
                 rgb_input = np.array(traj['rgb'][si:si + max_len])
                 rgb_input = rgb_input.reshape(rgb_input.shape[0],rgb_input.shape[1],rgb_input.shape[2],3)
                 rgb_input = torch.tensor(rgb_input.transpose(0,3,1,2))
-                encoded_input = img_encoder(rgb_input.float()).detach().numpy()
+                encoded_input = img_encoder(rgb_input.float().cuda()).detach().cpu().numpy()
                 encoded_input = encoded_input.reshape(1,encoded_input.shape[0],encoded_input.shape[1])
                 state = np.concatenate((state,encoded_input),axis = 2)
 
@@ -267,7 +273,7 @@ def experiment(
                 depth_input = np.array(traj['depth'][si:si + max_len])
                 depth_input = depth_input.reshape(depth_input.shape[0],depth_input.shape[1],depth_input.shape[2],1)
                 depth_input = torch.tensor(depth_input.transpose(0,3,1,2))
-                encoded_input = depth_encoder(depth_input).detach().numpy()
+                encoded_input = depth_encoder(depth_input.cuda()).detach().cpu().numpy()
                 encoded_input = encoded_input.reshape(1,encoded_input.shape[0],encoded_input.shape[1])
                 state = np.concatenate((state,encoded_input),axis = 2)
 
@@ -289,9 +295,14 @@ def experiment(
                 rtg[-1] = np.concatenate([rtg[-1], np.zeros((1, 1, 1))], axis=1)
 
             # padding and state + reward normalization
+            print("XXXXXXX")
             tlen = s[-1].shape[1]
+            print(s[-1].shape, np.zeros((1, max_len - tlen, state_dim)).shape)
             s[-1] = np.concatenate([np.zeros((1, max_len - tlen, state_dim)), s[-1]], axis=1)
+
+            
             s[-1] = (s[-1] - state_mean) / state_std
+            print(s.shape)
             a[-1] = np.concatenate([np.ones((1, max_len - tlen, act_dim)) * -10., a[-1]], axis=1)
             r[-1] = np.concatenate([np.zeros((1, max_len - tlen, 1)), r[-1]], axis=1)
             d[-1] = np.concatenate([np.ones((1, max_len - tlen)) * 2, d[-1]], axis=1)
@@ -465,11 +476,11 @@ if __name__ == '__main__':
 
 
     """ Added Parameters """
-    parser.add_argument('--train_with_objpose', type=bool, default=True)
-    parser.add_argument('--train_with_depth', type=bool, default=False)
-    parser.add_argument('--train_with_rgb', type=bool, default=False)
-    parser.add_argument('--white_noise_attack_rgb', type=bool, default=False)
-    parser.add_argument('--white_noise_attack_depth', type=bool, default=False)
+    parser.add_argument('--train_with_objpose', action='store_true')
+    parser.add_argument('--train_with_depth', action='store_true')
+    parser.add_argument('--train_with_rgb', action='store_true')
+    parser.add_argument('--white_noise_attack_rgb', action='store_true')
+    parser.add_argument('--white_noise_attack_depth', action='store_true')
     
     args = parser.parse_args()
 
