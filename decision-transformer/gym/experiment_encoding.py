@@ -19,7 +19,7 @@ from decision_transformer.training.act_trainer import ActTrainer
 from decision_transformer.training.seq_trainer import SequenceTrainer
 
 root = '/proj/vondrick2/james/robotics/'
-# root = './'
+root = './'
 
 class RGB_Encoder(nn.Module):    
     def __init__(self, encoded_space_dim,fc2_input_dim):
@@ -204,6 +204,15 @@ def experiment(
     states = np.concatenate(states, axis=0)
     state_mean, state_std = np.mean(states, axis=0), np.std(states, axis=0) + 1e-6
     
+    if variant['train_with_objpose'] == False:
+        state_mean = state_mean[:9]
+        state_std = state_std[:9]
+    
+    if (env_name == 'kitchen-complete'):
+        num_padding = 32*((variant['train_with_rgb']==1)+(variant['train_with_depth']==1))
+        state_mean = np.pad(state_mean, (0, num_padding), 'constant', constant_values=(0, 0))
+        state_std = np.pad(state_std, (0, num_padding), 'constant', constant_values=(1,1))
+    
     num_timesteps = sum(traj_lens)
 
     print('=' * 50)
@@ -250,12 +259,9 @@ def experiment(
 
             # append observation, rgb, depth to state if needed
             state = traj['observations'][si:si + max_len].reshape(1, -1, original_state_dim)
-            print("----------")
-            print(state.shape)
-
+            
             if variant['train_with_objpose'] == False:
                 state = state[:,:,:9]
-                print(state.shape)
 
             if variant['train_with_rgb']:
                 rgb_input = np.array(traj['rgb'][si:si + max_len])
@@ -295,14 +301,11 @@ def experiment(
                 rtg[-1] = np.concatenate([rtg[-1], np.zeros((1, 1, 1))], axis=1)
 
             # padding and state + reward normalization
-            print("XXXXXXX")
             tlen = s[-1].shape[1]
-            print(s[-1].shape, np.zeros((1, max_len - tlen, state_dim)).shape)
             s[-1] = np.concatenate([np.zeros((1, max_len - tlen, state_dim)), s[-1]], axis=1)
 
             
             s[-1] = (s[-1] - state_mean) / state_std
-            print(s.shape)
             a[-1] = np.concatenate([np.ones((1, max_len - tlen, act_dim)) * -10., a[-1]], axis=1)
             r[-1] = np.concatenate([np.zeros((1, max_len - tlen, 1)), r[-1]], axis=1)
             d[-1] = np.concatenate([np.ones((1, max_len - tlen)) * 2, d[-1]], axis=1)
