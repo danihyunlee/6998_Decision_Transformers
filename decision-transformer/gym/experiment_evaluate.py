@@ -126,7 +126,6 @@ def evaluate_episode_rgbd(
 
     if variant['train_with_rgb']:
         rgb_input = env.render(mode='rgb_array', depth=False)
-
         """ Add in adversarial attacks for rgb_input here"""
         
         rgb_input = rgb_input.reshape(1,rgb_input.shape[0],rgb_input.shape[1],3)
