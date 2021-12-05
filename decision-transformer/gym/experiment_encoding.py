@@ -21,7 +21,7 @@ from decision_transformer.training.seq_trainer import SequenceTrainer
 root = '/proj/vondrick2/james/robotics/'
 root = './'
 
-class RGB_Encoder(nn.Module):    
+class RGB_Encoder(nn.Module):
     def __init__(self, encoded_space_dim,fc2_input_dim):
         super().__init__()
         
