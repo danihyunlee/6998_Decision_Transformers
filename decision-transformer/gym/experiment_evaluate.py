@@ -17,9 +17,28 @@ from decision_transformer.models.decision_transformer import DecisionTransformer
 from decision_transformer.models.mlp_bc import MLPBCModel
 
 root = '/proj/vondrick2/james/robotics/'
-root = './'
+# root = './'
 
 """sample script: python experiment_evaluate.py --env kitchen-complete --model_savepath ../../ --model_name dt_kitchen-complete_rgbd_2.pt --device cpu --train_with_rgb true --train_with_depth true --num_eval_episodes 10"""
+
+
+device = 'cpu'
+def fgsm_attack(model, loss, images, labels, eps) :
+    
+    images = images.to(device)
+    labels = labels.to(device)
+    images.requires_grad = True
+            
+    outputs = model(images)
+    
+    model.zero_grad()
+    cost = loss(outputs, labels).to(device)
+    cost.backward()
+    
+    attack_images = images + eps*images.grad.sign()
+    attack_images = torch.clamp(attack_images, 0, 1)
+    
+    return attack_images
 
 class RGB_Encoder(nn.Module):    
     def __init__(self, encoded_space_dim,fc2_input_dim):
@@ -52,6 +71,55 @@ class RGB_Encoder(nn.Module):
         x = self.encoder_lin(x)
         return x
 
+class RGB_Decoder(nn.Module):
+    
+    def __init__(self, encoded_space_dim,fc2_input_dim):
+        super().__init__()
+        self.decoder_lin = nn.Sequential(
+            nn.Linear(encoded_space_dim, 128),
+            nn.ReLU(True),
+            nn.Linear(128, 27 * 27 * 32),
+            # nn.Linear(128,23328),
+            nn.ReLU(True)
+        )
+
+        self.unflatten = nn.Unflatten(dim=1, 
+        unflattened_size=(32, 27, 27))
+
+        self.decoder_conv = nn.Sequential(
+            nn.ConvTranspose2d(32, 16, 3, 
+            stride=2, output_padding=1),
+            nn.BatchNorm2d(16),
+            nn.ReLU(True),
+            nn.ConvTranspose2d(16, 8, 3, stride=2, 
+            padding=1, output_padding=1),
+            # nn.BatchNorm2d(8),
+            nn.ReLU(True),
+            nn.ConvTranspose2d(8, 3, 3, stride=2, 
+            padding=1, output_padding=1)
+        )
+        
+    def forward(self, x):
+        x = self.decoder_lin(x)
+        x = self.unflatten(x)
+        x = self.decoder_conv(x)
+        x = torch.sigmoid(x)
+        return x
+
+class RGB_CAE(nn.Module):
+    def __init__(self, encoded_space_dim,fc2_input_dim):
+        super().__init__()
+        self.encoder = RGB_Encoder(encoded_space_dim, fc2_input_dim)
+        self.decoder = RGB_Decoder(encoded_space_dim, fc2_input_dim)
+        
+    def forward(self, x):
+        x = self.encoder(x)
+        # print("LATENT SPACE")
+        # print(x)
+        x = self.decoder(x)
+        return x
+
+
 class Depth_Encoder(nn.Module):
     def __init__(self, encoded_space_dim,fc2_input_dim):
         super().__init__()
@@ -82,6 +150,56 @@ class Depth_Encoder(nn.Module):
         x = self.flatten(x)
         x = self.encoder_lin(x)
         return x
+
+class Depth_Decoder(nn.Module):
+    
+    def __init__(self, encoded_space_dim,fc2_input_dim):
+        super().__init__()
+        self.decoder_lin = nn.Sequential(
+            nn.Linear(encoded_space_dim, 128),
+            nn.ReLU(True),
+            nn.Linear(128, 27 * 27 * 32),
+            # nn.Linear(128,23328),
+            nn.ReLU(True)
+        )
+
+        self.unflatten = nn.Unflatten(dim=1, 
+        unflattened_size=(32, 27, 27))
+
+        self.decoder_conv = nn.Sequential(
+            nn.ConvTranspose2d(32, 16, 3, 
+            stride=2, output_padding=1),
+            nn.BatchNorm2d(16),
+            nn.ReLU(True),
+            nn.ConvTranspose2d(16, 8, 3, stride=2, 
+            padding=1, output_padding=1),
+            # nn.BatchNorm2d(8),
+            nn.ReLU(True),
+            nn.ConvTranspose2d(8, 1, 3, stride=2, 
+            padding=1, output_padding=1)
+        )
+        
+    def forward(self, x):
+        x = self.decoder_lin(x)
+        x = self.unflatten(x)
+        x = self.decoder_conv(x)
+        x = torch.sigmoid(x)
+        return x
+
+
+class Depth_CAE(nn.Module):
+    def __init__(self, encoded_space_dim,fc2_input_dim):
+        super().__init__()
+        self.encoder = Depth_Encoder(encoded_space_dim, fc2_input_dim)
+        self.decoder = Depth_Decoder(encoded_space_dim, fc2_input_dim)
+        
+    def forward(self, x):
+        x = self.encoder(x)
+        # print("LATENT SPACE")
+        # print(x)
+        x = self.decoder(x)
+        return x
+
 
 def evaluate_episode_bc_rgbd(
         state_init,
@@ -333,20 +451,62 @@ def evaluate_episode_dt_rgbd(
 
         if variant['train_with_rgb']:
             rgb_input = env.render(mode='rgb_array', depth=False)
+            rgb_input = rgb_input.reshape(1,rgb_input.shape[0],rgb_input.shape[1],3)
+            rgb_input = torch.tensor(rgb_input.transpose(0,3,1,2).copy()).float()
+
+            if variant['white_noise_attack_rgb']:
+                attack_rgb_model = RGB_CAE(encoded_space_dim=32,fc2_input_dim=128)
+
+                all_state_dict = {}
+                encoder_weights = torch.load("../../img_depth_encoder/encoder_img.pth", map_location=torch.device('cpu'))
+                for k in encoder_weights:
+                    all_state_dict['encoder.' + k] = encoder_weights[k]
+                    
+                decoder_weights = torch.load("../../img_depth_encoder/decoder_img.pth", map_location=torch.device('cpu'))
+                for k in decoder_weights:
+                    all_state_dict['decoder.' + k] = decoder_weights[k]
+
+                attack_rgb_model.load_state_dict(all_state_dict)
 
             """ Add in adversarial attacks for rgb_input here"""
 
-            rgb_input = rgb_input.reshape(1,rgb_input.shape[0],rgb_input.shape[1],3)
-            rgb_input = torch.tensor(rgb_input.transpose(0,3,1,2).copy())
-            encoded_input = img_encoder(rgb_input.float()).detach().numpy()
+            if variant['white_noise_attack_rgb']:
+                loss = torch.nn.MSELoss()
+                adv_input = fgsm_attack(attack_rgb_model, loss, rgb_input, rgb_input, eps=0.03).to(device)
+                encoded_input = img_encoder(adv_input).detach().numpy()
+            else:
+                encoded_input = img_encoder(rgb_input).detach().numpy()
+
             encoded_input = encoded_input.reshape(1,32)
             state = np.concatenate((state,encoded_input),axis = 1)
 
         if variant['train_with_depth']:
             depth_input = env.render(mode='rgb_array', depth=True)
             depth_input = depth_input.reshape(1,depth_input.shape[0],depth_input.shape[1],1)
-            depth_input = torch.tensor(depth_input.transpose(0,3,1,2).copy())
-            encoded_input = depth_encoder(depth_input.float()).detach().numpy()
+            depth_input = torch.tensor(depth_input.transpose(0,3,1,2).copy()).float()
+
+            if variant['white_noise_attack_depth']:
+                attack_depth_model = Depth_CAE(encoded_space_dim=32,fc2_input_dim=128)
+
+                all_state_dict = {}
+                encoder_weights = torch.load("../../img_depth_encoder/encoder_depth.pth", map_location=torch.device('cpu'))
+                for k in encoder_weights:
+                    all_state_dict['encoder.' + k] = encoder_weights[k]
+                    
+                decoder_weights = torch.load("../../img_depth_encoder/decoder_depth.pth", map_location=torch.device('cpu'))
+                for k in decoder_weights:
+                    all_state_dict['decoder.' + k] = decoder_weights[k]
+
+                attack_depth_model.load_state_dict(all_state_dict)
+
+
+            if variant['white_noise_attack_depth']:
+                loss = torch.nn.MSELoss()
+                adv_input = fgsm_attack(attack_depth_model, loss, depth_input, depth_input, eps=0.03).to(device)
+                encoded_input = img_encoder(adv_input).detach().numpy()
+            else:
+                encoded_input = depth_encoder(depth_input).detach().numpy()
+                
             encoded_input = encoded_input.reshape(1,32)
             state = np.concatenate((state,encoded_input),axis = 1)
 
@@ -452,11 +612,13 @@ def experiment_evaluate(
         img_encoder.load_state_dict(torch.load("../../img_depth_encoder/encoder_img.pth",map_location=variant['device']))
         img_encoder.to(device=device)
 
+
     if variant['train_with_depth']:
         state_dim += 32   # depth 32*1 dim
         depth_encoder = Depth_Encoder(encoded_space_dim=32,fc2_input_dim=128)
         depth_encoder.load_state_dict(torch.load("../../img_depth_encoder/encoder_depth.pth",map_location=variant['device']))
         depth_encoder.to(device=device)
+
 
     act_dim = env.action_space.shape[0]
 
