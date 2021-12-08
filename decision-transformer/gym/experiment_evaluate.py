@@ -17,22 +17,36 @@ from decision_transformer.models.decision_transformer import DecisionTransformer
 from decision_transformer.models.mlp_bc import MLPBCModel
 
 root = '/proj/vondrick2/james/robotics/'
-# root = './'
+root = './'
 
 """sample script: python experiment_evaluate.py --env kitchen-complete --model_savepath ../../ --model_name dt_kitchen-complete_rgbd_2.pt --device cpu --train_with_rgb true --train_with_depth true --num_eval_episodes 10"""
 
 
 device = 'cpu'
+rgb_noise = 10
+depth_noise = 0.1
+
+
 def fgsm_attack(model, loss, images, labels, eps) :
-    
+
+
     images = images.to(device)
     labels = labels.to(device)
+
+
+
+    from torch.autograd import Variable
+    images = Variable(images,requires_grad=True)
+    labels = Variable(labels,requires_grad=True)
     images.requires_grad = True
             
+    model.zero_grad()
+
     outputs = model(images)
     
-    model.zero_grad()
     cost = loss(outputs, labels).to(device)
+
+
     cost.backward()
     
     attack_images = images + eps*images.grad.sign()
@@ -247,8 +261,12 @@ def evaluate_episode_bc_rgbd(
     if variant['train_with_rgb']:
         rgb_input = env.render(mode='rgb_array', depth=False)
         """ Add in adversarial attacks for rgb_input here"""
-        
         rgb_input = rgb_input.reshape(1,rgb_input.shape[0],rgb_input.shape[1],3)
+
+        if variant['gaussian_noise_attack_rgb']:
+            noise = np. andom.normal(0, 0.1, rgb_input.shape)
+            rgb_input = rgb_input + noise
+
         rgb_input = torch.tensor(rgb_input.transpose(0,3,1,2).copy())
         encoded_input = img_encoder(rgb_input.float()).detach().numpy()
         encoded_input = encoded_input.reshape(1,32)
@@ -257,6 +275,11 @@ def evaluate_episode_bc_rgbd(
     if variant['train_with_depth']:
         depth_input = env.render(mode='rgb_array', depth=True)
         depth_input = depth_input.reshape(1,depth_input.shape[0],depth_input.shape[1],1)
+
+        if variant['gaussian_noise_attack_depth']:
+            noise = np. andom.normal(0, 0.1, depth_input.shape)
+            depth_input = depth_input + noise
+
         depth_input = torch.tensor(depth_input.transpose(0,3,1,2).copy())
         encoded_input = depth_encoder(depth_input.float()).detach().numpy()
         encoded_input = encoded_input.reshape(1,32)
@@ -306,6 +329,11 @@ def evaluate_episode_bc_rgbd(
             """ Add in adversarial attacks for rgb_input here"""
 
             rgb_input = rgb_input.reshape(1,rgb_input.shape[0],rgb_input.shape[1],3)
+
+            if variant['gaussian_noise_attack_rgb']:
+                noise = np.random.normal(0, rgb_noise, rgb_input.shape)
+                rgb_input = rgb_input + noise
+
             rgb_input = torch.tensor(rgb_input.transpose(0,3,1,2).copy())
             encoded_input = img_encoder(rgb_input.float()).detach().numpy()
             encoded_input = encoded_input.reshape(1,32)
@@ -314,6 +342,10 @@ def evaluate_episode_bc_rgbd(
         if variant['train_with_depth']:
             depth_input = env.render(mode='rgb_array', depth=True)
             depth_input = depth_input.reshape(1,depth_input.shape[0],depth_input.shape[1],1)
+
+            if variant['gaussian_noise_attack_depth']:
+                noise = np.random.normal(0, depth_noise, depth_input.shape)
+                depth_input = depth_input + noise
             depth_input = torch.tensor(depth_input.transpose(0,3,1,2).copy())
             encoded_input = depth_encoder(depth_input.float()).detach().numpy()
             encoded_input = encoded_input.reshape(1,32)
@@ -382,18 +414,28 @@ def evaluate_episode_dt_rgbd(
     if variant['train_with_rgb']:
         rgb_input = env.render(mode='rgb_array', depth=False)
         """ Add in adversarial attacks for rgb_input here"""
-        
         rgb_input = rgb_input.reshape(1,rgb_input.shape[0],rgb_input.shape[1],3)
         rgb_input = torch.tensor(rgb_input.transpose(0,3,1,2).copy())
-        encoded_input = img_encoder(rgb_input.float()).detach().numpy()
+
+        if variant['gaussian_noise_attack_rgb']:
+            noise = np.random.normal(0, rgb_noise, rgb_input.shape)
+            rgb_input = rgb_input + noise
+
+        encoded_input = img_encoder(rgb_input.float().cuda()).detach().cpu().numpy()
         encoded_input = encoded_input.reshape(1,32)
         state = np.concatenate((state,encoded_input),axis = 1)
+        
 
     if variant['train_with_depth']:
         depth_input = env.render(mode='rgb_array', depth=True)
         depth_input = depth_input.reshape(1,depth_input.shape[0],depth_input.shape[1],1)
+
+        if variant['gaussian_noise_attack_depth']:
+            noise = np.random.normal(0, depth_noise, depth_input.shape)
+            depth_input = depth_input + noise
+
         depth_input = torch.tensor(depth_input.transpose(0,3,1,2).copy())
-        encoded_input = depth_encoder(depth_input.float()).detach().numpy()
+        encoded_input = depth_encoder(depth_input.float().cuda()).detach().cpu().numpy()
         encoded_input = encoded_input.reshape(1,32)
         state = np.concatenate((state,encoded_input),axis = 1)
 
@@ -452,6 +494,13 @@ def evaluate_episode_dt_rgbd(
         if variant['train_with_rgb']:
             rgb_input = env.render(mode='rgb_array', depth=False)
             rgb_input = rgb_input.reshape(1,rgb_input.shape[0],rgb_input.shape[1],3)
+
+            if variant['gaussian_noise_attack_rgb']:
+                noise = np.random.normal(0, rgb_noise, rgb_input.shape)
+                rgb_input = rgb_input + noise
+            
+            #import pdb
+            #pdb.set_trace()
             rgb_input = torch.tensor(rgb_input.transpose(0,3,1,2).copy()).float()
 
             if variant['white_noise_attack_rgb']:
@@ -472,10 +521,12 @@ def evaluate_episode_dt_rgbd(
 
             if variant['white_noise_attack_rgb']:
                 loss = torch.nn.MSELoss()
+
+                attack_rgb_model.eval()
                 adv_input = fgsm_attack(attack_rgb_model, loss, rgb_input, rgb_input, eps=0.03).to(device)
-                encoded_input = img_encoder(adv_input).detach().numpy()
+                encoded_input = img_encoder(adv_input.cuda()).detach().cpu().numpy()
             else:
-                encoded_input = img_encoder(rgb_input).detach().numpy()
+                encoded_input = img_encoder(rgb_input.cuda()).detach().cpu().numpy()
 
             encoded_input = encoded_input.reshape(1,32)
             state = np.concatenate((state,encoded_input),axis = 1)
@@ -483,6 +534,11 @@ def evaluate_episode_dt_rgbd(
         if variant['train_with_depth']:
             depth_input = env.render(mode='rgb_array', depth=True)
             depth_input = depth_input.reshape(1,depth_input.shape[0],depth_input.shape[1],1)
+
+            if variant['gaussian_noise_attack_depth']:
+                noise = np.random.normal(0, depth_noise, depth_input.shape)
+                depth_input = depth_input + noise
+            
             depth_input = torch.tensor(depth_input.transpose(0,3,1,2).copy()).float()
 
             if variant['white_noise_attack_depth']:
@@ -503,9 +559,9 @@ def evaluate_episode_dt_rgbd(
             if variant['white_noise_attack_depth']:
                 loss = torch.nn.MSELoss()
                 adv_input = fgsm_attack(attack_depth_model, loss, depth_input, depth_input, eps=0.03).to(device)
-                encoded_input = img_encoder(adv_input).detach().numpy()
+                encoded_input = depth_encoder(adv_input.cuda()).detach().cpu().numpy()
             else:
-                encoded_input = depth_encoder(depth_input).detach().numpy()
+                encoded_input = depth_encoder(depth_input.cuda()).detach().cpu().numpy()
                 
             encoded_input = encoded_input.reshape(1,32)
             state = np.concatenate((state,encoded_input),axis = 1)
@@ -695,12 +751,30 @@ def experiment_evaluate(
         returns, lengths, tot_returns = [], [], []
         for _ in range(num_eval_episodes):
             state_init = random.choice(states).copy()
-            with torch.no_grad():
-                # Added in code for evaluation in kitchen for DT
-                if env_name == 'kitchen-complete' and model_type == 'dt':
-                    ret, length, tot_ret = evaluate_episode_dt_rgbd(
-                        state_init,
-                        variant,
+
+            # Added in code for evaluation in kitchen for DT
+            if env_name == 'kitchen-complete' and model_type == 'dt':
+                ret, length, tot_ret = evaluate_episode_dt_rgbd(
+                    state_init,
+                    variant,
+                    env,
+                    state_dim,
+                    act_dim,
+                    model,
+                    max_ep_len=max_ep_len,
+                    scale=scale,
+                    target_return=target_rew/scale,
+                    mode=mode,
+                    state_mean=state_mean,
+                    state_std=state_std,
+                    device=device,
+                    img_encoder=img_encoder,
+                    depth_encoder=depth_encoder,
+                    visualize=variant['visualize']
+                )
+            else:
+                if model_type == 'dt':
+                    ret, length = evaluate_episode_rtg(
                         env,
                         state_dim,
                         act_dim,
@@ -712,13 +786,12 @@ def experiment_evaluate(
                         state_mean=state_mean,
                         state_std=state_std,
                         device=device,
-                        img_encoder=img_encoder,
-                        depth_encoder=depth_encoder,
-                        visualize=variant['visualize']
                     )
                 else:
-                    if model_type == 'dt':
-                        ret, length = evaluate_episode_rtg(
+                    if env_name == 'kitchen-complete' and model_type == 'bc':
+                        ret, length, tot_ret = evaluate_episode_bc_rgbd(
+                            state_init,
+                            variant,
                             env,
                             state_dim,
                             act_dim,
@@ -730,44 +803,27 @@ def experiment_evaluate(
                             state_mean=state_mean,
                             state_std=state_std,
                             device=device,
+                            img_encoder=img_encoder,
+                            depth_encoder=depth_encoder,
+                            visualize=variant['visualize']
                         )
-                    else:
-                        if env_name == 'kitchen-complete' and model_type == 'bc':
-                            ret, length, tot_ret = evaluate_episode_bc_rgbd(
-                                state_init,
-                                variant,
-                                env,
-                                state_dim,
-                                act_dim,
-                                model,
-                                max_ep_len=max_ep_len,
-                                scale=scale,
-                                target_return=target_rew/scale,
-                                mode=mode,
-                                state_mean=state_mean,
-                                state_std=state_std,
-                                device=device,
-                                img_encoder=img_encoder,
-                                depth_encoder=depth_encoder,
-                                visualize=variant['visualize']
-                            )
-                        else:    
-                            ret, length = evaluate_episode(
-                                env,
-                                state_dim,
-                                act_dim,
-                                model,
-                                max_ep_len=max_ep_len,
-                                target_return=target_rew/scale,
-                                mode=mode,
-                                state_mean=state_mean,
-                                state_std=state_std,
-                                device=device,
-                            )
-                returns.append(ret)
-                lengths.append(length)
-                tot_returns.append(tot_ret)
-                print('episode return', ret, 'episode length', length, 'total return', tot_ret)
+                    else:    
+                        ret, length = evaluate_episode(
+                            env,
+                            state_dim,
+                            act_dim,
+                            model,
+                            max_ep_len=max_ep_len,
+                            target_return=target_rew/scale,
+                            mode=mode,
+                            state_mean=state_mean,
+                            state_std=state_std,
+                            device=device,
+                        )
+            returns.append(ret)
+            lengths.append(length)
+            tot_returns.append(tot_ret)
+            print('episode return', ret, 'episode length', length, 'total return', tot_ret)
         return{
             f'target_{target_rew}_return_mean': np.mean(returns),
             f'target_{target_rew}_return_std': np.std(returns),
@@ -827,10 +883,10 @@ def experiment_evaluate(
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--env', type=str, default='hopper')
+    parser.add_argument('--env', type=str, default='kitchen-complete')
     parser.add_argument('--dataset', type=str, default='medium')  # medium, medium-replay, medium-expert, expert
     parser.add_argument('--mode', type=str, default='normal')  # normal for standard setting, delayed for sparse
-    parser.add_argument('--K', type=int, default=20)
+    parser.add_argument('--K', type=int, default=300)
     parser.add_argument('--visualize', type=bool, default=False)
     parser.add_argument('--pct_traj', type=float, default=1.)
     parser.add_argument('--model_type', type=str, default='dt')  # dt for decision transformer, bc for behavior cloning
@@ -847,8 +903,12 @@ if __name__ == '__main__':
     parser.add_argument('--num_steps_per_iter', type=int, default=10000)
     parser.add_argument('--device', type=str, default='cuda')
     parser.add_argument('--log_to_wandb', '-w', type=bool, default=False)
-    parser.add_argument('--model_savepath', type=str, default=os.path.join('.','models'))
-    parser.add_argument('--model_name', type=str, default='')
+    # parser.add_argument('--model_savepath', type=str, default=os.path.join('.','models'))
+    # parser.add_argument('--model_name', type=str, default='')
+    parser.add_argument('--model_savepath', type=str, default="/home/jlw2247/DT/6998_Decision_Transformers/decision-transformer/gym/")
+    parser.add_argument('--model_name', type=str, default='dt_kitchen-complete_6_pprgbd.pt')
+    
+    
     
     """ Added Parameters """
     parser.add_argument('--train_with_objpose', action='store_true')
@@ -856,6 +916,8 @@ if __name__ == '__main__':
     parser.add_argument('--train_with_rgb', action='store_true')
     parser.add_argument('--white_noise_attack_rgb', action='store_true')
     parser.add_argument('--white_noise_attack_depth', action='store_true')
+    parser.add_argument('--gaussian_noise_attack_rgb', action='store_true')
+    parser.add_argument('--gaussian_noise_attack_depth', action='store_true')
 
 
     args = parser.parse_args()
